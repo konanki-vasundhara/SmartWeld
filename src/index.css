@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer utilities {
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .industrial-overlay {
+    background-image: radial-gradient(circle at 50% 50%, transparent 0%, rgba(13, 28, 50, 0.85) 100%);
+  }
+  .progress-pulse {
+    box-shadow: 0 0 15px rgba(255, 95, 0, 0.6);
+  }
+}
+
+@keyframes slow-zoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slow-zoom {
+  animation: slow-zoom 20s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 1s ease-out forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+@layer base {
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    margin: 0;
+  }
+}
