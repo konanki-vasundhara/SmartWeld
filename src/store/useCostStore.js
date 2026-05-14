@@ -1,45 +1,6 @@
 import { create } from 'zustand';
-import { db } from '../firebase';
-import { collection, onSnapshot, query, doc, getDoc } from 'firebase/firestore';
-
-const defaultCostItems = [
-  {
-    id: 'material',
-    name: 'Material Cost',
-    description: 'High-grade structural steel plate inserts',
-    quantity: 2,
-    unit: 'Units',
-    unitPrice: 600,
-    total: 1200
-  },
-  {
-    id: 'labor',
-    name: 'Labor Charges',
-    description: 'Certified Grade-A Welder (Site Visit + 3 hrs Ops)',
-    quantity: 1,
-    unit: 'Job',
-    unitPrice: 2500,
-    total: 2500
-  },
-  {
-    id: 'equipment',
-    name: 'Equipment Cost',
-    description: 'Plasma cutter & specialized TIG welding rig',
-    quantity: 1,
-    unit: 'Set',
-    unitPrice: 500,
-    total: 500
-  },
-  {
-    id: 'welding-rods',
-    name: 'Welding Rods',
-    description: 'E7018 low-hydrogen electrodes (Pack of 10)',
-    quantity: 1,
-    unit: 'Pack',
-    unitPrice: 300,
-    total: 300
-  }
-];
+import api from '../utils/api';
+import { calculateDynamicCosts } from '../utils/imageAnalysis';
 
 const GST_RATE = 0.18;
 
@@ -52,54 +13,68 @@ const calculateTotals = (items) => {
 };
 
 const useCostStore = create((set, get) => ({
-  costItems: defaultCostItems,
+  costItems: [],
   isLoading: false,
   error: null,
-  unsubscribe: null,
   estimationNumber: `EST-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000)}`,
   issueDate: new Date().toLocaleDateString('en-IN'),
 
-  // Initialize real-time listener
+  // Sync costs with the AI Scan Analysis
+  syncWithScanResult: (analysis) => {
+    const baseItems = get().costItems;
+    if (baseItems.length === 0) return;
+
+    const dynamicData = calculateDynamicCosts(analysis, baseItems);
+    set({ costItems: dynamicData.costItems });
+  },
+
+  // Initialize real-time costs from Backend
   initializeRealTimeCosts: async () => {
+    if (get().costItems.length > 0 && !get().error) return; // Prevent double fetch if already synced
+
     set({ isLoading: true, error: null });
     
     try {
-      // Try to get real-time updates from Firestore
-      const q = query(collection(db, 'pricing'));
+      const allPricing = await api.get('/pricing');
       
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        try {
-          const items = [];
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            items.push({
-              id: doc.id,
-              name: data.name,
-              description: data.description,
-              quantity: data.quantity || 1,
-              unit: data.unit || 'Unit',
-              unitPrice: data.unitPrice || 0,
-              total: (data.quantity || 1) * (data.unitPrice || 0)
-            });
-          });
+      if (!allPricing || !Array.isArray(allPricing)) {
+        throw new Error('Invalid pricing data received from server');
+      }
 
-          if (items.length > 0) {
-            set({ costItems: items, isLoading: false });
-          }
-        } catch (err) {
-          console.error('Error processing Firestore data:', err);
-          set({ error: err.message, isLoading: false });
-        }
-      }, (error) => {
-        console.error('Firestore listener error:', error);
-        // Fall back to default if Firestore is not available
-        set({ costItems: defaultCostItems, isLoading: false });
-      });
+      // Map backend pricing to cost items
+      const items = allPricing
+        .filter(p => p.category === 'material' || p.category === 'labor')
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          quantity: p.id === 'material' ? 2 : 1, 
+          unit: p.unit,
+          unitPrice: p.unitPrice,
+          total: (p.id === 'material' ? 2 : 1) * p.unitPrice
+        }));
 
-      set({ unsubscribe, isLoading: false });
+      // Add standard items if missing
+      if (items.length < 3) {
+        items.push({ id: 'equip', name: 'Equipment Cost', quantity: 1, unit: 'Set', unitPrice: 550, total: 550 });
+        items.push({ id: 'rods', name: 'Welding Rods', quantity: 1, unit: 'Pack', unitPrice: 320, total: 320 });
+      }
+
+      set({ costItems: items, isLoading: false, error: null });
     } catch (err) {
-      console.error('Error initializing real-time costs:', err);
-      set({ error: err.message, isLoading: false, costItems: defaultCostItems });
+      console.error('Error fetching backend pricing:', err);
+      // Fallback to safety defaults
+      const fallbackItems = [
+        { id: 'material', name: 'Material Cost', description: 'Structural steel inserts', quantity: 2, unit: 'Units', unitPrice: 650, total: 1300 },
+        { id: 'labor', name: 'Labor Charges', description: 'Certified Welder Ops', quantity: 1, unit: 'Job', unitPrice: 2800, total: 2800 },
+        { id: 'equip', name: 'Equipment Cost', description: 'Welding Rig Rental', quantity: 1, unit: 'Set', unitPrice: 550, total: 550 },
+        { id: 'rods', name: 'Welding Rods', description: 'E7018 Electrodes', quantity: 1, unit: 'Pack', unitPrice: 320, total: 320 }
+      ];
+      set({ 
+        costItems: fallbackItems, 
+        error: 'Offline - using estimated rates', 
+        isLoading: false 
+      });
     }
   },
 
@@ -127,20 +102,14 @@ const useCostStore = create((set, get) => ({
   // Reset to defaults
   reset: () => {
     set({
-      costItems: defaultCostItems,
+      costItems: [],
       estimationNumber: `EST-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000)}`,
       issueDate: new Date().toLocaleDateString('en-IN')
     });
   },
 
-  // Cleanup listener
-  cleanup: () => {
-    const unsubscribe = get().unsubscribe;
-    if (unsubscribe) {
-      unsubscribe();
-      set({ unsubscribe: null });
-    }
-  }
+  // Cleanup
+  cleanup: () => {}
 }));
 
 export default useCostStore;

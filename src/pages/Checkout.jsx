@@ -157,9 +157,9 @@ export default function Checkout() {
                 <p className="font-body-sm font-semibold text-on-surface">Unified Payments Interface (UPI)</p>
                 <div className="grid grid-cols-3 gap-xs">
                   {[
-                    { key: 'GPay', label: 'G-Pay', icon: 'https://img.icons8.com/color/48/google-pay-india.png' },
-                    { key: 'PhonePe', label: 'PhonePe', icon: 'https://img.icons8.com/color/48/phonepe.png' },
-                    { key: 'Paytm', label: 'Paytm', icon: 'https://img.icons8.com/color/48/paytm.png' }
+                    { key: 'GPay', label: 'G-Pay', icon: 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png' },
+                    { key: 'PhonePe', label: 'PhonePe', icon: 'https://download.logo.wine/logo/PhonePe/PhonePe-Logo.wine.png' },
+                    { key: 'Paytm', label: 'Paytm', icon: 'https://download.logo.wine/logo/Paytm/Paytm-Logo.wine.png' }
                   ].map((method) => (
                     <button
                       key={method.key}
@@ -170,7 +170,7 @@ export default function Checkout() {
                       }}
                       className={`flex flex-col items-center justify-center gap-xs p-base rounded-lg transition-all border-2 ${selectedMethod === method.key ? 'border-primary bg-primary/5' : 'border-outline-variant bg-surface-container-lowest hover:border-primary'}`}
                     >
-                      <div className="w-10 h-10 flex items-center justify-center bg-white rounded-md p-1 shadow-sm overflow-hidden">
+                      <div className="w-16 h-10 flex items-center justify-center bg-white rounded-md p-1.5 shadow-sm overflow-hidden border border-slate-100">
                         <img alt={method.label} className="w-full h-full object-contain" src={method.icon} />
                       </div>
                       <span className="text-[10px] font-bold text-on-surface uppercase tracking-wider">{method.label}</span>

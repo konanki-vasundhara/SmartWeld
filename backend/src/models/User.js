@@ -22,11 +22,11 @@ const User = sequelize.define('User', {
     }
   },
   displayName: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true
   },
   profileImage: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true
   },
   password: {
@@ -34,11 +34,11 @@ const User = sequelize.define('User', {
     allowNull: true 
   },
   workshopName: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true
   },
   specialization: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true
   },
   role: {

@@ -1,11 +1,59 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopAppBar from '../components/TopAppBar';
 import MapReview from '../components/MapReview';
 import useCurrentLocation from '../hooks/useCurrentLocation';
+import useScanStore from '../store/useScanStore';
+import useAuthStore from '../store/useAuthStore';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { coords, locationName, loading, error, nearbyPlaces } = useCurrentLocation();
+  const { scanHistory, fetchScanHistory, isLoading } = useScanStore();
+  const { userProfile, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated && userProfile?.token) {
+      fetchScanHistory(userProfile.token);
+    }
+  }, [isAuthenticated, userProfile, fetchScanHistory]);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', { 
+      month: 'short', 
+      day: 'numeric' 
+    }) + ' • ' + date.toLocaleTimeString('en-IN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const getStatusStyle = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'high alert':
+        return { 
+          container: 'text-error bg-error-container', 
+          icon: 'warning', 
+          label: 'Critical' 
+        };
+      case 'medium':
+        return { 
+          container: 'text-amber-700 bg-amber-100', 
+          icon: 'error_outline', 
+          label: 'Review' 
+        };
+      case 'low':
+      default:
+        return { 
+          container: 'text-green-700 bg-green-100', 
+          icon: 'check_circle', 
+          label: 'Passed' 
+        };
+    }
+  };
+
   return (
     <>
       <TopAppBar title="Smart Weld" />
@@ -131,34 +179,54 @@ export default function Dashboard() {
 <button onClick={() => navigate('/scan-results')} className="text-primary text-label-bold border-b border-primary">View History</button>
 </div>
 <div className="space-y-base">
-{/*  Scan Card 1  */}
-<div className="industrial-card bg-surface-container p-sm flex items-center gap-md hover:bg-surface-container-high transition-colors cursor-pointer">
-<div className="w-16 h-16 rounded-lg overflow-hidden bg-outline-variant flex-shrink-0">
-<img className="w-full h-full object-cover grayscale" data-alt="Close up image of an industrial pipe weld with a metallic gray color scheme. The lighting is harsh and industrial, emphasizing the texture of the metal. The image has a scientific, diagnostic feel suitable for a report." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjflm6rZsC_kqaWhtZUp6ZXpuEpjzf6YXr_V2NpUBDZr-gO8RxD_tW_UCudPFI-AMWq9pLds6q5ugXSqH6BpWboRj6n9jevXXplgzKwoFgUozzoOFyrnsdLS44XqNRwU6bVyTCofkYWwGw_3PgeLUzVAGJ7KWCYsVfInPqNrnK387s6h9eEfBEzXP9Eem34GKAeL7ggSG3fz3a_couU0vQF981Hfyt9pWfUiw5bbld-DLpsDn4LtGPT18EegMJYgjJy5efJr-zHx-I"/>
-</div>
-<div className="flex-grow">
-<h4 className="font-button-text text-on-surface">Pipe-X7 Structural</h4>
-<p className="text-body-sm text-on-surface-variant">Oct 24 • 09:12 AM</p>
-</div>
-<div className="flex items-center gap-xs text-green-700 bg-green-100 px-sm py-xs rounded-full">
-<span className="material-symbols-outlined text-sm" data-icon="check_circle" style={{ 'fontVariationSettings': '\'FILL\' 1' }}>check_circle</span>
-<span className="text-[10px] font-bold uppercase">Passed</span>
-</div>
-</div>
-{/*  Scan Card 2  */}
-<div className="industrial-card bg-surface-container p-sm flex items-center gap-md hover:bg-surface-container-high transition-colors cursor-pointer">
-<div className="w-16 h-16 rounded-lg overflow-hidden bg-outline-variant flex-shrink-0">
-<img className="w-full h-full object-cover grayscale" data-alt="Industrial metal beam connection with visible welding marks. The scene is shot in a construction environment with neutral, cool lighting and a focus on the precision of the joints. Professional industrial photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyL5ViZI6fxvpMC4SmW2cFtRj7G6C3LW0CYRdFGA7IsEDO5SFs00B2xyeQCVNwBrk82lNGbngryvJpQowjROLwB5huQopDVZSh2U6BHQI9h0vjqOhfxRxFW4HdpRlZ3tAqjgKLz25qjHlAtYniVpIo04Id3XwSHyu0sjRKh3UQJwAba9b4GVz7XXPhnHspEJFhEreVsRdhHDdCGUJ-3Iaat3izwZS7LTv3X2feDglO7S6-g8oZjFXpNw-9kblZ0lcRuOK-xWJXYxyY"/>
-</div>
-<div className="flex-grow">
-<h4 className="font-button-text text-on-surface">Main Support Girders</h4>
-<p className="text-body-sm text-on-surface-variant">Oct 23 • 04:45 PM</p>
-</div>
-<div className="flex items-center gap-xs text-error bg-error-container px-sm py-xs rounded-full">
-<span className="material-symbols-outlined text-sm" data-icon="warning" style={{ 'fontVariationSettings': '\'FILL\' 1' }}>warning</span>
-<span className="text-[10px] font-bold uppercase">Review</span>
-</div>
-</div>
+  {isLoading ? (
+    <div className="flex justify-center py-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  ) : scanHistory.length > 0 ? (
+    scanHistory.slice(0, 3).map((scan) => {
+      const statusStyle = getStatusStyle(scan.imageAnalysis?.severity);
+      return (
+        <div 
+          key={scan.id || scan.scanId} 
+          onClick={() => navigate(`/scan-results/${scan.scanId || scan.id}`)}
+          className="industrial-card bg-surface-container p-sm flex items-center gap-md hover:bg-surface-container-high transition-colors cursor-pointer"
+        >
+          <div className="w-16 h-16 rounded-lg overflow-hidden bg-outline-variant flex-shrink-0">
+            <img 
+              className="w-full h-full object-cover grayscale" 
+              src={scan.imageUrl} 
+              alt={scan.imageAnalysis?.damageType || 'Scan'} 
+            />
+          </div>
+          <div className="flex-grow">
+            <h4 className="font-button-text text-on-surface truncate max-w-[200px]">
+              {scan.imageAnalysis?.damageType || 'Structural Scan'}
+            </h4>
+            <p className="text-body-sm text-on-surface-variant">
+              {formatDate(scan.createdAt)}
+            </p>
+          </div>
+          <div className={`flex items-center gap-xs px-sm py-xs rounded-full ${statusStyle.container}`}>
+            <span className="material-symbols-outlined text-sm" style={{ 'fontVariationSettings': '\'FILL\' 1' }}>
+              {statusStyle.icon}
+            </span>
+            <span className="text-[10px] font-bold uppercase">{statusStyle.label}</span>
+          </div>
+        </div>
+      );
+    })
+  ) : (
+    <div className="industrial-card bg-surface-container p-lg text-center border border-dashed border-outline-variant rounded-xl">
+      <p className="text-on-surface-variant">No recent scans found.</p>
+      <button 
+        onClick={() => navigate('/scanner')}
+        className="mt-3 text-primary font-bold text-sm"
+      >
+        Start your first scan
+      </button>
+    </div>
+  )}
 </div>
 </section>
 </main>

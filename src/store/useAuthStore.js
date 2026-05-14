@@ -5,6 +5,7 @@ import api from '../utils/api';
 const useAuthStore = create((set, get) => ({
   isAuthenticated: false,
   userProfile: null,
+  token: null,
   isLoading: false,
   authMethod: null, // 'email' or 'google'
   phoneNumber: '',
@@ -37,7 +38,7 @@ const useAuthStore = create((set, get) => ({
       return true;
     } catch (error) {
       set({ 
-        error: error.response?.data?.error || 'Failed to send OTP. Please try again.', 
+        error: error.data?.error || error.message || 'Failed to send OTP. Please try again.', 
         isLoading: false 
       });
       return false;
@@ -75,6 +76,7 @@ const useAuthStore = create((set, get) => ({
       set({
         isAuthenticated: true,
         userProfile,
+        token: userProfile.token,
         otpVerified: true,
         isLoading: false,
         error: null
@@ -134,6 +136,7 @@ const useAuthStore = create((set, get) => ({
       set({
         isAuthenticated: true,
         userProfile,
+        token: userProfile.token,
         authMethod: 'google',
         isLoading: false,
         error: null
@@ -176,6 +179,7 @@ const useAuthStore = create((set, get) => ({
           set({
             isAuthenticated: true,
             userProfile: authData.userProfile,
+            token: authData.userProfile?.token || null,
             authMethod: authData.authMethod || 'phone'
           });
         } else {
@@ -202,6 +206,59 @@ const useAuthStore = create((set, get) => ({
       otpVerified: false,
       error: null
     });
+  },
+
+  fetchProfile: async (token) => {
+    try {
+      const response = await api.get('/auth/profile', token);
+      const u = response.user;
+      const userProfile = {
+        id: u.id,
+        email: u.email,
+        name: u.displayName,
+        workshopName: u.workshopName,
+        title: u.specialization,
+        phoneNumber: u.phoneNumber,
+        avatar: u.avatar
+      };
+      set({ userProfile, isAuthenticated: true });
+      return userProfile;
+    } catch (error) {
+      console.error('Fetch profile failed:', error);
+      return null;
+    }
+  },
+
+  updateProfile: async (newData, token) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.put('/auth/profile/update', newData, token);
+      
+      // Verification Step: Fetch the updated profile directly from the server
+      const updatedProfile = await get().fetchProfile(token);
+      
+      if (!updatedProfile) {
+        throw new Error('Sync failed with database');
+      }
+      
+      set({ isLoading: false });
+      
+      // Force sync to localStorage
+      const storedAuth = JSON.parse(localStorage.getItem('smartweld_auth') || '{}');
+      localStorage.setItem('smartweld_auth', JSON.stringify({
+        ...storedAuth,
+        isAuthenticated: true,
+        userProfile: updatedProfile,
+        timestamp: Date.now()
+      }));
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update profile failed:', error);
+      const errorMessage = error.data?.details || error.data?.error || error.message || 'Transmission failed';
+      set({ error: errorMessage, isLoading: false });
+      return { success: false, error: errorMessage };
+    }
   },
 
   // Reset auth state (for switching between methods)

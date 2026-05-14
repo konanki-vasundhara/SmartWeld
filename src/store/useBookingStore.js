@@ -21,50 +21,36 @@ const defaultBooking = {
   transactionId: null
 };
 
-const issuePricing = {
-  'Broken Chassis': [
-    { label: 'Labor Cost (Welding Specialist)', amount: 35 },
-    { label: 'Materials & Consumables', amount: 10 },
-    { label: 'Safety & Equipment Surcharge', amount: 3 },
-    { label: 'Service Tax (GST 10%)', amount: 5 }
-  ],
-  'Pipeline Leak': [
-    { label: 'Labor Cost (Welding Specialist)', amount: 1 },
-    { label: 'Materials & Consumables', amount: 1 },
-    { label: 'Safety & Equipment Surcharge', amount: 1 },
-    { label: 'Service Tax (GST 10%)', amount: 1 }
-  ],
-  'Conveyor Rift': [
-    { label: 'Labor Cost (Welding Specialist)', amount: 32 },
-    { label: 'Materials & Consumables', amount: 9 },
-    { label: 'Safety & Equipment Surcharge', amount: 280 },
-    { label: 'Service Tax (GST 10%)', amount: 1 }
-  ],
-  'Other Critical': [
-    { label: 'Labor Cost (Welding Specialist)', amount: 42 },
-    { label: 'Materials & Consumables', amount: 15 },
-    { label: 'Safety & Equipment Surcharge', amount: 420 },
-    { label: 'Service Tax (GST 10%)', amount: 7 }
-  ]
-};
-
-const getLineItemsForIssue = (issue) => issuePricing[issue] || defaultLineItems;
-
 const useBookingStore = create((set, get) => ({
   booking: defaultBooking,
   userBookings: [],
+  issuePricing: {}, // Real-time pricing from backend
   isLoading: false,
   error: null,
 
+  // Initialize issue pricing from Backend
+  initializeBookingPricing: async () => {
+    try {
+      const prices = await api.get('/pricing/category/emergency_issue');
+      const pricingMap = {};
+      prices.forEach(p => {
+        pricingMap[p.name] = p.metadata?.lineItems || [];
+      });
+      set({ issuePricing: pricingMap });
+    } catch (err) {
+      console.error('Failed to fetch booking pricing:', err);
+    }
+  },
+
   setBooking: (patch) => {
-    const current = get().booking;
+    const { booking, issuePricing } = get();
     const updated = {
-      ...current,
+      ...booking,
       ...patch
     };
 
     if (patch.issue) {
-      const lineItems = getLineItemsForIssue(patch.issue);
+      const lineItems = issuePricing[patch.issue] || [];
       updated.lineItems = lineItems;
       updated.amount = calculateTotal(lineItems);
     }

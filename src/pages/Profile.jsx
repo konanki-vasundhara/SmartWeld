@@ -1,183 +1,239 @@
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopAppBar from '../components/TopAppBar';
 import useAuthStore from '../store/useAuthStore';
+import useScanStore from '../store/useScanStore';
+import useBookingStore from '../store/useBookingStore';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { userProfile, logout, isAuthenticated } = useAuthStore();
+  
+  // Use Selectors for guaranteed re-renders
+  const userProfile = useAuthStore(state => state.userProfile);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const token = useAuthStore(state => state.token) || userProfile?.token;
+  const updateProfile = useAuthStore(state => state.updateProfile);
+  const isUpdating = useAuthStore(state => state.isLoading);
+  const authError = useAuthStore(state => state.error);
+  const logout = useAuthStore(state => state.logout);
+
+  const scanHistory = useScanStore(state => state.scanHistory);
+  const fetchScanHistory = useScanStore(state => state.fetchScanHistory);
+  const userBookings = useBookingStore(state => state.userBookings);
+  const fetchUserBookings = useBookingStore(state => state.fetchUserBookings);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [localError, setLocalError] = useState(null);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    title: '',
+    workshopName: '',
+    phoneNumber: '',
+    avatar: ''
+  });
+
+  // Sync form data
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        name: userProfile.name || '',
+        title: userProfile.title || '',
+        workshopName: userProfile.workshopName || '',
+        phoneNumber: userProfile.phoneNumber || '',
+        avatar: userProfile.avatar || ''
+      });
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      fetchScanHistory(token).catch(err => {
+        if (err.status === 401) setLocalError("Your session has expired. Please log in again.");
+      });
+      fetchUserBookings(token);
+    }
+  }, [isAuthenticated, token, fetchScanHistory, fetchUserBookings]);
+
+  const handleSave = async () => {
+    setLocalError(null);
+    if (!token) {
+      setLocalError("No valid session found. Please re-login.");
+      return;
+    }
+
+    const result = await updateProfile({
+      displayName: formData.name,
+      specialization: formData.title,
+      workshopName: formData.workshopName,
+      phoneNumber: formData.phoneNumber,
+      avatar: formData.avatar
+    }, token);
+
+    if (result.success) {
+      setIsEditing(false);
+    } else {
+      setLocalError(result.error || "Connection to site core lost.");
+    }
+  };
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
 
+  const dName = userProfile?.name || 'TECHNICIAN';
+  const dTitle = userProfile?.title || 'INDUSTRIAL SPECIALIST';
+  const dSite = userProfile?.workshopName || 'NO SITE ASSIGNED';
+  const dAvatar = userProfile?.avatar || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=200&h=200";
+
   return (
-    <>
-      <TopAppBar title="Smart Weld" />
-      {/* Guest Banner */}
-      {!isAuthenticated && (
-        <div className="bg-primary-container border-b border-primary/20 px-margin-mobile md:px-margin-desktop py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary text-xl">person_off</span>
-            <p className="text-sm text-on-primary-container font-medium">
-              You're browsing as a guest. Log in to save your profile & scan history.
-            </p>
+    <div className="min-h-screen bg-[#F3F4F6] text-slate-800 font-sans">
+      <TopAppBar title="Operator Profile" />
+      
+      <main className="max-w-5xl mx-auto px-4 py-12 space-y-8">
+        
+        {/* LIGHT GREY PROFESSIONAL HEADER */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-8 md:p-12 flex flex-col md:flex-row items-center gap-10">
+            
+            {/* AVATAR */}
+            <div className="relative">
+              <div className="w-36 h-36 md:w-44 md:h-44 rounded-3xl overflow-hidden border-4 border-slate-50 shadow-md">
+                <img src={dAvatar} alt="Profile" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute -bottom-3 -right-3 bg-white p-2 rounded-xl shadow-lg border border-slate-100">
+                <span className="material-symbols-outlined text-primary text-2xl">verified_user</span>
+              </div>
+            </div>
+
+            {/* INFO */}
+            <div className="flex-grow text-center md:text-left space-y-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Technician Identity</p>
+                {isEditing ? (
+                  <input 
+                    className="w-full text-4xl md:text-5xl font-black text-slate-900 border-b-2 border-primary outline-none py-1 bg-transparent"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    autoFocus
+                  />
+                ) : (
+                  <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">{dName}</h2>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-6 justify-center md:justify-start">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Specialization</p>
+                  {isEditing ? (
+                    <input className="border border-slate-200 rounded px-2 py-1 text-sm w-40" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+                  ) : (
+                    <p className="font-bold text-slate-600 italic">{dTitle}</p>
+                  )}
+                </div>
+                <div className="w-px h-8 bg-slate-200 hidden sm:block"></div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Site</p>
+                  {isEditing ? (
+                    <input className="border border-slate-200 rounded px-2 py-1 text-sm w-40" value={formData.workshopName} onChange={e => setFormData({...formData, workshopName: e.target.value})} />
+                  ) : (
+                    <p className="font-bold text-slate-600 italic">{dSite}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3 justify-center md:justify-start">
+                {!isEditing ? (
+                  <button onClick={() => setIsEditing(true)} className="bg-blue-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">edit</span>
+                    Modify Account
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button onClick={handleSave} disabled={isUpdating} className="bg-green-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:bg-green-700 transition-all">
+                      {isUpdating ? 'Synchronizing...' : 'Save Changes'}
+                    </button>
+                    <button onClick={() => setIsEditing(false)} className="bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {localError && (
+                <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl text-xs font-bold animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    {localError}
+                  </div>
+                  {localError.includes('expired') && (
+                    <button onClick={handleLogout} className="mt-2 text-primary underline">Logout & Refresh Session Now</button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => navigate('/login')}
-            className="shrink-0 text-sm font-bold text-white bg-primary px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
-          >
-            Log In
-          </button>
         </div>
-      )}
-<main className="max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop py-base space-y-md">
-{/*  Profile Header  */}
-<section className="mt-md">
-<div className="bg-surface-container-highest rounded-xl p-md border border-outline-variant relative overflow-hidden">
-<div className="absolute top-0 right-0 p-base">
-<span className="bg-primary text-on-primary text-label-bold font-label-bold px-3 py-1 rounded-full flex items-center gap-1">
-<span className="material-symbols-outlined text-[14px]" data-icon="verified" style={{ 'fontVariationSettings': '\'FILL\' 1' }}>verified</span>
-                        Certified Welder
-                    </span>
-</div>
-<div className="flex flex-col md:flex-row items-center gap-md">
-<div className="relative">
-<img alt="User Profile" className="w-24 h-24 rounded-xl object-cover border-2 border-primary" src={userProfile?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuA0XWfLufJOy_Kq5oVd5WI4Ne95bOWjng086gDDCkbVjSCFUPqRv5Zo2THmajG7CHeWhPSh5HXZsMt7Zrsw7YIzMmYVAyZ_usefvv5-ZbL7Ua5q2eiFOJuEj8ZXqmW31_MwNcCMCSBrtuzSte-BrGe4DAHa_bkiitlDYbT15cIGpecnLJc2IpBDj8Pdv_gk66-yX-0FY1f_D_v-rfoYRbtEdYOy2NaFPwxvz9cqgBv03q8iKftV-9Q2WN7Cifb5znZuAOlWxoLmtWWo"}/>
-<div className="absolute -bottom-2 -right-2 bg-safety-orange text-white p-1 rounded-lg">
-<span className="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
-</div>
-</div>
-<div className="text-center md:text-left">
-<h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">{userProfile?.name || 'Guest User'}</h2>
-<p className="text-on-surface-variant font-body-sm">{userProfile?.title || 'User'} • ID: {userProfile?.id || 'N/A'}</p>
-<div className="flex gap-2 mt-2 justify-center md:justify-start">
-<div className="flex items-center bg-surface-container-low px-2 py-1 rounded border border-outline-variant">
-<span className="material-symbols-outlined text-[16px] mr-1 text-primary" data-icon="bolt">bolt</span>
-<span className="text-label-bold">98% Quality Score</span>
-</div>
-<div className="flex items-center bg-surface-container-low px-2 py-1 rounded border border-outline-variant">
-<span className="material-symbols-outlined text-[16px] mr-1 text-primary" data-icon="construction">construction</span>
-<span className="text-label-bold">4.2k Repairs</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-</section>
-{/*  Account Settings Grid  */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-{/*  Account Actions  */}
-<section className="space-y-sm">
-<h3 className="text-label-bold font-label-bold text-on-surface-variant uppercase tracking-widest px-xs">Account Settings</h3>
-<div className="bg-surface rounded-xl border border-outline-variant divide-y divide-outline-variant">
-<div className="flex items-center justify-between p-md hover:bg-surface-container-low transition-colors cursor-pointer group">
-<div className="flex items-center gap-md">
-<div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-<span className="material-symbols-outlined" data-icon="person">person</span>
-</div>
-<div>
-<p className="font-button-text text-button-text">Personal Details</p>
-<p className="text-body-sm text-on-surface-variant">Update identity and credentials</p>
-</div>
-</div>
-<span className="material-symbols-outlined text-outline group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
-</div>
-<div className="flex items-center justify-between p-md hover:bg-surface-container-low transition-colors cursor-pointer group">
-<div className="flex items-center gap-md">
-<div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-<span className="material-symbols-outlined" data-icon="home_pin">home_pin</span>
-</div>
-<div>
-<p className="font-button-text text-button-text">Saved Addresses</p>
-<p className="text-body-sm text-on-surface-variant">Manage field site locations</p>
-</div>
-</div>
-<span className="material-symbols-outlined text-outline group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
-</div>
-<div className="flex items-center justify-between p-md hover:bg-surface-container-low transition-colors cursor-pointer group">
-<div className="flex items-center gap-md">
-<div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-<span className="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
-</div>
-<div>
-<p className="font-button-text text-button-text">Payment History</p>
-<p className="text-body-sm text-on-surface-variant">Invoices and equipment leasing</p>
-</div>
-</div>
-<span className="material-symbols-outlined text-outline group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
-</div>
-<div className="flex items-center justify-between p-md hover:bg-surface-container-low transition-colors cursor-pointer group">
-<div className="flex items-center gap-md">
-<div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-<span className="material-symbols-outlined" data-icon="translate">translate</span>
-</div>
-<div>
-<p className="font-button-text text-button-text">Language Settings (Multilingual)</p>
-<p className="text-body-sm text-on-surface-variant">English, German, French</p>
-</div>
-</div>
-<span className="material-symbols-outlined text-outline group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
-</div>
-</div>
-</section>
-{/*  Toggles & Industrial Controls  */}
-<section className="space-y-sm">
-<h3 className="text-label-bold font-label-bold text-on-surface-variant uppercase tracking-widest px-xs">System Preferences</h3>
-<div className="bg-surface rounded-xl border border-outline-variant divide-y divide-outline-variant">
-<div className="flex items-center justify-between p-md">
-<div className="flex items-center gap-md">
-<div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-<span className="material-symbols-outlined" data-icon="dark_mode">dark_mode</span>
-</div>
-<div>
-<p className="font-button-text text-button-text">Dark Mode</p>
-<p className="text-body-sm text-on-surface-variant">Reduce eye strain in field</p>
-</div>
-</div>
-<button className="w-12 h-6 bg-surface-container-highest rounded-full relative border border-outline-variant">
-<div className="absolute left-1 top-1 w-4 h-4 bg-primary rounded-full"></div>
-</button>
-</div>
-<div className="flex items-center justify-between p-md">
-<div className="flex items-center gap-md">
-<div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-<span className="material-symbols-outlined" data-icon="notifications_active">notifications_active</span>
-</div>
-<div>
-<p className="font-button-text text-button-text">Push Notifications</p>
-<p className="text-body-sm text-on-surface-variant">Safety alerts &amp; scan results</p>
-</div>
-</div>
-<button className="w-12 h-6 bg-primary rounded-full relative">
-<div className="absolute right-1 top-1 w-4 h-4 bg-on-primary rounded-full"></div>
-</button>
-</div>
-<div className="p-md">
-<div className="glass-effect rounded-lg p-sm border border-secondary-container bg-secondary-container/10">
-<div className="flex items-center gap-2 mb-2">
-<span className="material-symbols-outlined text-primary text-[20px]" data-icon="smart_toy">smart_toy</span>
-<span className="font-label-bold text-primary">AI Diagnostic Assistant</span>
-</div>
-<p className="text-body-sm text-on-secondary-container">Assistant is active and learning your welding patterns to optimize machine voltage automatically.</p>
-</div>
-</div>
-</div>
-</section>
-</div>
-{/*  Footer Actions  */}
-<section className="pt-md pb-xl space-y-base">
-<button className="w-full h-12 flex items-center justify-center gap-2 bg-surface border border-outline-variant rounded-lg font-button-text text-button-text text-primary hover:bg-surface-container-low transition-all active:scale-[0.98]">
-<span className="material-symbols-outlined" data-icon="help">help</span>
-                Help &amp; Support
+
+        {/* ACTIVITY LOG: LIGHT THEME */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-1 space-y-6">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">System Health</h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-600">Database Link</span>
+                  <span className="w-3 h-3 rounded-full bg-success shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-600">Auth Token</span>
+                  <span className={`w-3 h-3 rounded-full ${localError ? 'bg-error' : 'bg-success'}`}></span>
+                </div>
+                <div className="pt-4">
+                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-2">Neural Scan Credits</p>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-4/5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={handleLogout} className="w-full py-4 bg-white text-error border border-error/20 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-error/5 transition-all">
+              Sign Out of Portal
             </button>
-<button onClick={handleLogout} className="w-full h-12 flex items-center justify-center gap-2 bg-white border-2 border-error rounded-lg font-button-text text-button-text text-error hover:bg-error/5 transition-all active:scale-[0.98]">
-<span className="material-symbols-outlined" data-icon="logout">logout</span>
-                Logout
-            </button>
-<p className="text-center text-body-sm text-outline mt-md">App Version 4.8.2 (Stable Build)</p>
-</section>
-</main>
-    </>
+          </div>
+
+          <div className="md:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Recent Activity History</h4>
+              <span className="text-[10px] font-bold text-slate-400">{scanHistory.length} Total Records</span>
+            </div>
+            <div className="p-2 max-h-[400px] overflow-y-auto">
+              {scanHistory.length > 0 ? (
+                scanHistory.slice(0, 10).map((scan, i) => (
+                  <div key={scan.id} className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-all rounded-2xl">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                      <span className="material-symbols-outlined">analytics</span>
+                    </div>
+                    <div className="flex-grow">
+                      <p className="text-sm font-bold text-slate-800 uppercase">{scan.imageAnalysis?.damageType || 'Structural Scan'}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{new Date(scan.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-3 py-1 rounded-md uppercase">Recorded</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-20 text-center text-slate-300 italic text-sm font-medium">
+                  No activity logs detected on this terminal.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
