@@ -33,17 +33,28 @@ export default function ScanResults() {
 
   // Analyze image when component loads or scan changes
   useEffect(() => {
-    const analyzeCurrentImage = async () => {
+    const processScan = async () => {
       if (currentScan?.imageUrl) {
         setAnalyzingImage(true);
         try {
-          const analysis = await analyzeImage(currentScan.imageUrl);
+          let analysis;
+          
+          // Use existing analysis from store if available (Gemini)
+          if (currentScan.imageAnalysis) {
+            analysis = currentScan.imageAnalysis;
+          } else {
+            // Fallback to basic local analysis
+            analysis = await analyzeImage(currentScan.imageUrl);
+          }
+          
           const costs = calculateDynamicCosts(analysis, baseCostItems);
           setImageAnalysis(analysis);
           setDynamicCosts(costs);
+          
+          // Sync with global store for the detailed estimate page
+          useCostStore.getState().syncWithScanResult(analysis);
         } catch (err) {
-          console.error('Image analysis failed:', err);
-          // Fallback to no damage detected
+          console.error('Processing failed:', err);
           setImageAnalysis({ isBlank: true, confidence: 0 });
           setDynamicCosts({
             costItems: [],
@@ -57,8 +68,8 @@ export default function ScanResults() {
       }
     };
 
-    analyzeCurrentImage();
-  }, [currentScan?.imageUrl, baseCostItems]);
+    processScan();
+  }, [currentScan, baseCostItems]);
 
   // Severity color and bars based on analysis
   const severityColor = getSeverityColor(dynamicCosts.severity);

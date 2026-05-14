@@ -4,10 +4,15 @@ const User = require('../models/User');
 
 // Configure Email Transporter
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // You can change this to 'outlook', 'sendgrid', etc.
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Use SSL
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false // Helps in some environments
   }
 });
 
@@ -58,13 +63,22 @@ const requestEmailOTP = async (req, res) => {
     res.json({ message: 'OTP sent successfully to your email.' });
   } catch (error) {
     console.error('Email Send Error:', error);
-    // Fallback for dev if email credentials are missing
+    
+    // Fallback for dev: show OTP in console so user can still test
+    const storedData = otpStore.get(req.body.email);
+    if (storedData) {
+      console.warn(`[DEV FALLBACK] OTP for ${req.body.email} is: ${storedData.otp}`);
+    }
+
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       return res.status(500).json({ 
-        error: 'Email configuration missing in .env (Add EMAIL_USER and EMAIL_PASS)' 
+        error: 'Email configuration missing in .env' 
       });
     }
-    res.status(500).json({ error: 'Failed to send OTP email.' });
+
+    res.status(500).json({ 
+      error: `Failed to send OTP email: ${error.message}` 
+    });
   }
 };
 
@@ -213,13 +227,72 @@ const login = async (req, res) => {
 };
 
 const getProfile = async (req, res) => {
-  res.json({ user: req.user });
+  try {
+    const user = req.user;
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        workshopName: user.workshopName,
+        specialization: user.specialization,
+        phoneNumber: user.phoneNumber,
+        avatar: user.profileImage,
+        stats: user.stats,
+        preferences: user.preferences
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const { displayName, workshopName, specialization, phoneNumber, avatar } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await user.update({
+      displayName: displayName || user.displayName,
+      workshopName: workshopName || user.workshopName,
+      specialization: specialization || user.specialization,
+      phoneNumber: phoneNumber || user.phoneNumber,
+      profileImage: avatar || user.profileImage
+    });
+
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        workshopName: user.workshopName,
+        specialization: user.specialization,
+        phoneNumber: user.phoneNumber,
+        avatar: user.profileImage,
+        stats: user.stats,
+        preferences: user.preferences
+      }
+    });
+  } catch (error) {
+    console.error('Update Profile Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to update profile', 
+      details: error.message,
+      originalError: error.original?.message 
+    });
+  }
 };
 
 module.exports = {
   register,
   login,
   getProfile,
+  updateProfile,
   requestEmailOTP,
   verifyEmailOTP
 };

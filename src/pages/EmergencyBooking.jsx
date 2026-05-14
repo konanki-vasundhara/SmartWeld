@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopAppBar from '../components/TopAppBar';
 import MapReview from '../components/MapReview';
@@ -22,7 +22,12 @@ const getTravelMinutes = (origin, place) => {
 
 export default function EmergencyBooking() {
   const navigate = useNavigate();
-  const { booking, setBooking } = useBookingStore();
+  const { booking, setBooking, initializeBookingPricing } = useBookingStore();
+  
+  useEffect(() => {
+    initializeBookingPricing();
+  }, [initializeBookingPricing]);
+
   const { coords, locationName, loading, error, nearbyPlaces, retryLocation } = useCurrentLocation();
   const nearestUnit = nearbyPlaces?.[0];
   const liveWorker = nearestUnit
@@ -339,7 +344,7 @@ export default function EmergencyBooking() {
                 >
                   <div className="flex items-start gap-md mb-md">
                     <div className="w-12 h-12 rounded-lg bg-primary-container flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-primary text-xl" data-icon="factory">factory</span>
+                      <span className="material-symbols-outlined text-primary-fixed text-xl" data-icon="factory">factory</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-on-surface truncate">{place.name}</h3>

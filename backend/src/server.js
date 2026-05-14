@@ -22,6 +22,11 @@ app.get('/health', (req, res) => {
 // Start server
 const start = async () => {
   await connectDB();
+  // Force sync changes to the database schema
+  const { sequelize } = require('./config/database');
+  await sequelize.sync({ alter: true });
+  console.log('🔄 Database Schema Synchronized');
+  
   app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
   });

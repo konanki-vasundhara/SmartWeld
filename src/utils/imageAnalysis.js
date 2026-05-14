@@ -31,8 +31,7 @@ export const analyzeImage = async (imageUrl) => {
         hasContent: analysis.hasContent,
         severity: analysis.severity,
         damageType: analysis.damageType,
-        confidence: analysis.confidence,
-        estimatedCost: analysis.estimatedCost
+        confidence: analysis.confidence
       });
     };
 
@@ -43,8 +42,7 @@ export const analyzeImage = async (imageUrl) => {
         hasContent: false,
         severity: 'None',
         damageType: 'No Damage Detected',
-        confidence: 0,
-        estimatedCost: 0
+        confidence: 0
       });
     };
 
@@ -105,28 +103,23 @@ const analyzeImageData = (data, width, height) => {
       hasContent: false,
       severity: 'None',
       damageType: 'No Damage Detected',
-      confidence: 0.95,
-      estimatedCost: 0
+      confidence: 0.95
     };
   }
 
   // Analyze damage based on image characteristics
   let severity = 'Low';
   let damageType = 'Minor Surface Issues';
-  let estimatedCost = 15; // Base cost for minor issues
 
   if (darkRatio > 0.1) {
     severity = 'High Alert';
     damageType = 'Structural Crack';
-    estimatedCost = 5310; // Full repair cost
   } else if (darkRatio > 0.05) {
     severity = 'Medium';
     damageType = 'Surface Damage';
-    estimatedCost = 3;
   } else if (edgeRatio > 0.15) {
     severity = 'Medium';
     damageType = 'Edge Wear';
-    estimatedCost = 2;
   }
 
   return {
@@ -134,8 +127,7 @@ const analyzeImageData = (data, width, height) => {
     hasContent: true,
     severity,
     damageType,
-    confidence: Math.min(0.9, nonWhiteRatio * 2), // Confidence based on content
-    estimatedCost
+    confidence: Math.min(0.9, nonWhiteRatio * 2) // Confidence based on content
   };
 };
 
@@ -146,7 +138,7 @@ const analyzeImageData = (data, width, height) => {
  * @returns {object} - Dynamic cost breakdown
  */
 export const calculateDynamicCosts = (analysis, baseCostItems) => {
-  if (analysis.isBlank || analysis.estimatedCost === 0) {
+  if (analysis.isBlank || analysis.severity === 'None') {
     return {
       costItems: [],
       totals: { subtotal: 0, gst: 0, total: 0 },
@@ -156,8 +148,15 @@ export const calculateDynamicCosts = (analysis, baseCostItems) => {
     };
   }
 
-  // Scale costs based on analysis
-  const scaleFactor = analysis.estimatedCost / 5310; // Base cost is 5310
+  // Scale costs based on severity
+  const severityMultipliers = {
+    'High Alert': 1.0,
+    'Medium': 0.6,
+    'Low': 0.3,
+    'None': 0
+  };
+  
+  const scaleFactor = severityMultipliers[analysis.severity] || 0.5;
 
   const dynamicCostItems = baseCostItems.map(item => ({
     ...item,

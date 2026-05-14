@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import TopAppBar from '../components/TopAppBar';
 import useCostStore from '../store/useCostStore';
 
+import useScanStore from '../store/useScanStore';
+
 export default function RepairCostEstimation() {
   const navigate = useNavigate();
+  const currentScan = useScanStore(state => state.currentScan);
   const { costItems, getTotals, initializeRealTimeCosts, cleanup, isLoading, error, estimationNumber, issueDate } = useCostStore();
   const [totals, setTotals] = useState({ subtotal: 0, gst: 0, total: 0 });
 
@@ -97,8 +100,12 @@ export default function RepairCostEstimation() {
 {/*  Safety Disclaimer & Inspection Photo  */}
 <div className="grid grid-cols-1 md:grid-cols-3 gap-md mt-lg">
 <div className="md:col-span-1">
-<div className="rounded-lg overflow-hidden border border-outline-variant aspect-square">
-<img alt="Weld Scan Result" className="w-full h-full object-cover" data-alt="A close-up industrial photograph of a metallic weld joint being inspected under a blue scanning light. The metal surface is textured and rugged with visible welding beads. An AI-generated electric blue grid overlay highlighting a fracture point in the metal, creating a high-tech industrial aesthetic with deep blue and metallic gray tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFddH73yxm1dJNMGVH_waQmuXT32706xKdXipTMLEeMZ5d6mwcHg1KyymKmlyf83sbEyuY0sfK0drCx0jMzrHO4HUJvI-sQtrKkZm2vTfLDUx-GyVlVk2Q8XlvgRVgdwCR70XnABAtAygsXTGsECBKdzPWhu0bFDyDv8gN7F-WeaWtydk8FZC4RmQ8GkdPE5m1b69Hf3jzxRWIjvoqvhi4VdR4zuyStj6QYr9jNEca4Fu81TAPhH1XtDSYgKE5MnSByD7cPSG2-GuN"/>
+<div className="rounded-lg overflow-hidden border border-outline-variant aspect-square bg-surface-container">
+<img 
+  alt="Weld Scan Result" 
+  className="w-full h-full object-cover" 
+  src={currentScan?.imageUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuDFddH73yxm1dJNMGVH_waQmuXT32706xKdXipTMLEeMZ5d6mwcHg1KyymKmlyf83sbEyuY0sfK0drCx0jMzrHO4HUJvI-sQtrKkZm2vTfLDUx-GyVlVk2Q8XlvgRVgdwCR70XnABAtAygsXTGsECBKdzPWhu0bFDyDv8gN7F-WeaWtydk8FZC4RmQ8GkdPE5m1b69Hf3jzxRWIjvoqvhi4VdR4zuyStj6QYr9jNEca4Fu81TAPhH1XtDSYgKE5MnSByD7cPSG2-GuN"} 
+/>
 </div>
 </div>
 <div className="md:col-span-2 flex flex-col justify-center">
