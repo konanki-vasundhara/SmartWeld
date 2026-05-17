@@ -1,52 +1,39 @@
+version: '3.8'
+
 services:
 
-  frontend:
-    container_name: smartweld-frontend
-
-    build:
-      context: .
-      dockerfile: Dockerfile
-
+  postgres:
+    image: postgres:15
+    container_name: smartweld-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: Smart_Weld
     ports:
-      - "3001:3000"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
+  backend:
+    build: ./backend
+    container_name: smartweld-backend
+    restart: always
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+    env_file:
+      - ./backend/.env
+
+  frontend:
+    build: ./frontend
+    container_name: smartweld-frontend
+    restart: always
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
 
-    restart: always
-
-  backend:
-    container_name: smartweld-backend
-
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-
-    ports:
-      - "8001:8000"
-
-    environment:
-      DATABASE_URL: postgresql://postgres:vassu@db:5432/Smart_Weld
-
-    depends_on:
-      - db
-
-    restart: always
-
-  db:
-    container_name: smartweld-db
-
-    image: postgres:15
-
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: vassu
-      POSTGRES_DB: Smart_Weld
-
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-    restart: always
-
 volumes:
-  postgres-data:
+  postgres_data:
