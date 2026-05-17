@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: vassu
       POSTGRES_DB: Smart_Weld
     ports:
-      - "5432:5432"
+      - "5433:5432"   # FIXED PORT CONFLICT
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
