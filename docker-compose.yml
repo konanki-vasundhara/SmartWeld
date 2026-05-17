@@ -2,7 +2,6 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: smartweld-postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -12,13 +11,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - smartweld-net
-    # ❌ REMOVE PORT MAPPING (IMPORTANT FIX)
-    # ports:
-    #   - "5432:5432"
 
   backend:
     build: ./backend
-    container_name: smartweld-backend
     restart: always
     depends_on:
       - postgres
@@ -35,15 +30,12 @@ services:
 
   frontend:
     build: .
-    container_name: smartweld-frontend
     restart: always
     networks:
       - smartweld-net
 
   nginx:
     image: nginx:alpine
-    container_name: smartweld-nginx
-    restart: always
     ports:
       - "80:80"
     volumes:
@@ -51,7 +43,6 @@ services:
       - ./dist:/usr/share/nginx/html
     depends_on:
       - backend
-      - frontend
     networks:
       - smartweld-net
 
