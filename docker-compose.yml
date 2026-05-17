@@ -1,9 +1,10 @@
-version: '3'
-
 services:
 
   frontend:
-    build: ./src
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+
     container_name: smartweld-frontend
 
     ports:
@@ -12,8 +13,13 @@ services:
     depends_on:
       - backend
 
+    restart: always
+
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
     container_name: smartweld-backend
 
     ports:
@@ -25,8 +31,11 @@ services:
     depends_on:
       - db
 
+    restart: always
+
   db:
     image: postgres:15
+
     container_name: smartweld-db
 
     environment:
@@ -39,6 +48,8 @@ services:
 
     volumes:
       - postgres-data:/var/lib/postgresql/data
+
+    restart: always
 
 volumes:
   postgres-data:
