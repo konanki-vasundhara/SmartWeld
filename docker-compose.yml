@@ -35,7 +35,7 @@ services:
       DB_PORT: 5432
 
     expose:
-      - "5000"
+      - "3002"
 
     networks:
       - smartweld-net
