@@ -3,6 +3,7 @@ services:
   postgres:
     image: postgres:15
     container_name: postgres
+
     restart: always
 
     environment:
@@ -20,6 +21,7 @@ services:
   backend:
     build: ./backend
     container_name: backend
+
     restart: always
 
     depends_on:
@@ -42,6 +44,7 @@ services:
   frontend:
     build: .
     container_name: frontend
+
     restart: always
 
     depends_on:
