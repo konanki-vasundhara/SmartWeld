@@ -1,66 +1,66 @@
 services:
-
+ 
   postgres:
     image: postgres:15
     container_name: postgres
-
+ 
     restart: always
-
+ 
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: vassu
       POSTGRES_DB: smartweld
-
+ 
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
+ 
     networks:
       - smartweld-net
-
-
+ 
+ 
   backend:
     build: ./backend
     container_name: backend
-
+ 
     restart: always
-
+ 
     depends_on:
       - postgres
-
+ 
     environment:
       DB_HOST: postgres
       DB_USER: postgres
       DB_PASSWORD: vassu
       DB_NAME: smartweld
       DB_PORT: 5432
-
+ 
     expose:
       - "3002"
-
+ 
     networks:
       - smartweld-net
-
-
+ 
+ 
   frontend:
     build: .
     container_name: frontend
-
+ 
     restart: always
-
+ 
     depends_on:
       - backend
-
+ 
     ports:
-      - "80:80"
-
+      - "8080:80"
+ 
     networks:
       - smartweld-net
-
-
+ 
+ 
 volumes:
   postgres_data:
-
-
+ 
+ 
 networks:
   smartweld-net:
     driver: bridge
